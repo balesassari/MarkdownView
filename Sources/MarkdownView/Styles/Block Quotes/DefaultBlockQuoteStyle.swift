@@ -27,17 +27,23 @@ fileprivate struct DefaultBlockQuoteView: View {
     
     var body: some View {
         let tintColor = rendererConfiguration.tintColors[.blockQuote, default: .accentColor]
-        configuration.content
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .font(font._swiftUIFont)
-            .padding(.horizontal, 20)
-            .background {
-                tintColor.opacity(0.1)
+        VStack(alignment: .leading, spacing: 4) {
+            if let callout = configuration.callout {
+                Text(callout.title)
+                    .fontWeight(.semibold)
             }
-            .overlay(alignment: .leading) {
-                tintColor.frame(width: 4)
-            }
-            .clipShape(.rect(cornerRadius: 3))
+            configuration.content
+        }
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(font._swiftUIFont)
+        .padding(.horizontal, 20)
+        .background {
+            tintColor.opacity(0.1)
+        }
+        .overlay(alignment: .leading) {
+            tintColor.frame(width: 4)
+        }
+        .clipShape(.rect(cornerRadius: 3))
     }
 }

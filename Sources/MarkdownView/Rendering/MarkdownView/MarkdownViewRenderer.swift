@@ -42,11 +42,40 @@ struct MarkdownViewRenderer: @preconcurrency MarkupVisitor {
     }
 
     func visitDocument(_ document: Markdown.Document) -> MarkdownNodeView {
-        var renderer = self
-        let nodeViews = document.children.map {
-            renderer.visit($0)
+        MarkdownNodeView(renderBlocks(Array(document.children)), layoutPolicy: .linebreak)
+    }
+
+    /// Renders sibling blocks, with `<details>` … `</details>` folded into collapsible sections.
+    func renderBlocks(_ blocks: [any Markup]) -> [MarkdownNodeView] {
+        MarkdownBlockItem.group(blocks).map { render($0) }
+    }
+
+    private func render(_ item: MarkdownBlockItem) -> MarkdownNodeView {
+        switch item {
+        case .markup(let markup):
+            var renderer = self
+            return renderer.visit(markup)
+        case .details(let details):
+            let summary = renderSummary(details.summary)
+            let content = MarkdownNodeView(details.items.map { render($0) }, layoutPolicy: .linebreak)
+            return MarkdownNodeView {
+                MarkdownDetails(
+                    summary: summary,
+                    content: content,
+                    isInitiallyExpanded: details.isOpen
+                )
+            }
         }
-        return MarkdownNodeView(nodeViews, layoutPolicy: .linebreak)
+    }
+
+    /// The summary as an inline paragraph, so code and emphasis in it render as usual.
+    private func renderSummary(_ summary: String) -> MarkdownNodeView {
+        let document = Markdown.Document(parsing: summary)
+        guard document.childCount == 1, let paragraph = document.child(at: 0) as? Paragraph else {
+            return MarkdownNodeView(summary)
+        }
+        var renderer = self
+        return renderer.visit(paragraph)
     }
     
     func defaultVisit(_ markup: Markdown.Markup) -> MarkdownNodeView {
@@ -93,20 +122,19 @@ struct MarkdownViewRenderer: @preconcurrency MarkupVisitor {
     }
     
     func visitBlockQuote(_ blockQuote: BlockQuote) -> MarkdownNodeView {
+        let (callout, blocks) = MarkdownCallout.split(blockQuote)
+        let items = MarkdownBlockItem.group(blocks)
         let content = MarkdownBlockQuoteStyleConfiguration.Content {
             VStack(alignment: .leading, spacing: configuration.componentSpacing) {
-                ForEach(Array(blockQuote.children.enumerated()), id: \.offset) { _, child in
-                    MarkdownViewRenderer(
-                        configuration: configuration,
-                        mathContext: mathContext,
-                        elementRenderers: elementRenderers
-                    )
-                    .makeBody(for: child)
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    render(item)
+                        .environment(\.markdownMathContext, mathContext)
+                        .environment(\.markdownElementRenderers, elementRenderers)
                 }
             }
         }
         return MarkdownNodeView {
-            MarkdownBlockQuote(content: content)
+            MarkdownBlockQuote(content: content, callout: callout)
                 .tint(configuration.tintColors[.blockQuote, default: .accentColor])
         }
     }

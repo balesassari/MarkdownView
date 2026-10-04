@@ -10,15 +10,18 @@ import Markdown
 
 struct MarkdownBlockQuote: View {
     var content: MarkdownBlockQuoteStyleConfiguration.Content
+    var callout: MarkdownCallout?
     @Environment(\.blockQuoteStyle) private var blockQuoteStyle
 
-    init(content: MarkdownBlockQuoteStyleConfiguration.Content) {
+    init(content: MarkdownBlockQuoteStyleConfiguration.Content, callout: MarkdownCallout? = nil) {
         self.content = content
+        self.callout = callout
     }
     
     var body: some View {
         let configuration = MarkdownBlockQuoteStyleConfiguration(
-            content: content
+            content: content,
+            callout: callout
         )
         blockQuoteStyle
             .makeBody(configuration: configuration)

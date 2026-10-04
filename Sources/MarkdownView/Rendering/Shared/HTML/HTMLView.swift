@@ -128,8 +128,9 @@ private enum HTMLDocumentBuilder {
         <html style="overscroll-behavior:none;width:100%;">
         <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+        <meta name="color-scheme" content="light dark">
         </head>
-        <body style="margin:0px;">
+        <body style="margin:0px;font:-apple-system-body;">
         <div id="\(containerIdentifier)" style="width:100%;">\(rawHTML)</div>
         </body>
         </html>

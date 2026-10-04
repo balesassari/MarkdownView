@@ -4,6 +4,10 @@ import SwiftUI
 public struct MarkdownBlockQuoteStyleConfiguration {
     /// The content of a block quote.
     public var content: Content
+
+    /// The alert kind when the quote is a GitHub alert such as `> [!NOTE]`. The marker line
+    /// is already taken out of ``content``.
+    public var callout: MarkdownCallout?
     
     /// A type-erased content of a block quote
     public struct Content: View {
