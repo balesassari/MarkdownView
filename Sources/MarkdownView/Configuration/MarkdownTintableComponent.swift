@@ -10,6 +10,8 @@
 public enum MarkdownTintableComponent: Hashable, Sendable {
     case blockQuote
     case inlineCodeBlock
+    /// The background behind inline code. When unset, inline code uses its tint at 10% opacity.
+    case inlineCodeBackground
     case link
 }
 

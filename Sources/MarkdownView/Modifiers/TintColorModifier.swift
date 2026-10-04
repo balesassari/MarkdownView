@@ -23,6 +23,8 @@ extension SwiftUI.View {
                     configuration.tintColors[.blockQuote] = tint
                 case .inlineCodeBlock:
                     configuration.tintColors[.inlineCodeBlock] = tint
+                case .inlineCodeBackground:
+                    configuration.tintColors[.inlineCodeBackground] = tint
                 case .link:
                     configuration.tintColors[.link] = tint
             }
