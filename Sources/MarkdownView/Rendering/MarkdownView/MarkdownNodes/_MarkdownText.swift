@@ -21,9 +21,9 @@ struct _MarkdownText: View {
     var body: some View {
         Group {
             if let attributedString {
-                Text(Self.visibleText(input: text, rendered: attributedString))
+                Self.makeText(Self.visibleText(input: text, rendered: attributedString))
             } else {
-                Text(text)
+                Self.makeText(text)
             }
         }
         .task(id: text) {
@@ -49,6 +49,39 @@ struct _MarkdownText: View {
             guard !Task.isCancelled else { return }
             self.attributedString = RenderedState(input: text, output: attributedString)
         }
+    }
+
+    /// Creates the text, carrying each run's ``MarkdownInlineRole`` over as a text attribute.
+    ///
+    /// `Text` drops custom `AttributedString` attributes, so tagged runs become their own
+    /// `Text` segments with `customAttribute(_:)`, joined back into one `Text`.
+    static func makeText(_ attributedString: AttributedString) -> Text {
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+            return roleTaggedText(attributedString)
+        }
+        return Text(attributedString)
+    }
+
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+    private static func roleTaggedText(_ attributedString: AttributedString) -> Text {
+        let runs = attributedString.runs[AttributeScopes.MarkdownViewAttributeScope.MarkdownInlineRoleAttribute.self]
+        guard runs.contains(where: { $0.0 != nil }) else {
+            return Text(attributedString)
+        }
+
+        var text: Text?
+        for (role, range) in runs {
+            var segment = Text(AttributedString(attributedString[range]))
+            if let role {
+                segment = segment.customAttribute(role)
+            }
+            if let joined = text {
+                text = Text("\(joined)\(segment)")
+            } else {
+                text = segment
+            }
+        }
+        return text ?? Text(attributedString)
     }
 
     static func visibleText(input: AttributedString, rendered: RenderedState) -> AttributedString {

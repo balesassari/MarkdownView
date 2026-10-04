@@ -97,3 +97,12 @@ extension View {
         markdownHeadingStyle(style, for: headingLevel)
     }
 }
+
+extension View {
+    /// Sets the style for headings within this view.
+    ///
+    /// - Parameter style: The style to apply to every heading level.
+    nonisolated public func markdownHeadingStyle(_ style: some MarkdownHeadingStyle) -> some View {
+        environment(\.markdownHeadingStyle, style)
+    }
+}

@@ -17,6 +17,7 @@ struct MarkdownHeading: View {
     @Environment(\.markdownFontGroup) private var fontGroup
     @Environment(\.headingStyleGroup) private var headingStyleGroup
     @Environment(\.headingPaddings) private var paddings
+    @Environment(\.markdownHeadingStyle) private var headingStyle
     
     private var font: Font {
         let font: any CustomCTFontConvertible = switch heading.level {
@@ -54,7 +55,7 @@ struct MarkdownHeading: View {
     }
     
     var body: some View {
-        MarkdownViewRenderer(
+        let content = MarkdownViewRenderer(
             configuration: configuration,
             mathContext: mathContext,
             elementRenderers: elementRenderers
@@ -62,8 +63,17 @@ struct MarkdownHeading: View {
         .descendInto(heading)
         .font(font)
         .foregroundStyle(foregroundStyle)
-        .accessibilityHeading(accessibilityHeadingLevel)
-        .padding(paddings[heading.level])
-        .accessibilityAddTraits(.isHeader)
+        
+        headingStyle
+            .makeBody(
+                configuration: MarkdownHeadingStyleConfiguration(
+                    level: heading.level,
+                    content: MarkdownHeadingStyleConfiguration.Content(content)
+                )
+            )
+            .erasedToAnyView()
+            .accessibilityHeading(accessibilityHeadingLevel)
+            .padding(paddings[heading.level])
+            .accessibilityAddTraits(.isHeader)
     }
 }

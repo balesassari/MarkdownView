@@ -8,20 +8,19 @@ struct NetworkImage: View {
     @State private var svg: SVG?
     @State private var isSupported = true
     @Environment(\.displayScale) private var scale
+    @Environment(\.markdownImageStyle) private var imageStyle
     
     var body: some View {
         VStack {
-            if let image {
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: max(imageSize.width, imageSize.height))
-                    .task { await cacheFetchedImage(image) }
-            } else if let svg {
-                #if os(iOS) || os(macOS)
-                SVGView(svg: svg)
-                    .task { await cacheFetchedSVG(svg) }
-                #endif
+            if image != nil || svg != nil {
+                imageStyle
+                    .makeBody(
+                        configuration: MarkdownImageStyleConfiguration(
+                            content: MarkdownImageStyleConfiguration.Content(loadedImage),
+                            alternativeText: alt
+                        )
+                    )
+                    .erasedToAnyView()
             } else if !isSupported {
                 ImagePlaceholder()
             } else {
@@ -30,13 +29,6 @@ struct NetworkImage: View {
                     .controlSize(.small)
                     #endif
                     .frame(maxWidth: 50, alignment: .leading)
-            }
-            
-            let isLoaded = image != nil || svg != nil
-            if isLoaded, let alt {
-                Text(alt)
-                    .foregroundStyle(.secondary)
-                    .font(.callout)
             }
         }
         .onValueChange(url, initial: true) {
@@ -59,6 +51,22 @@ struct NetworkImage: View {
         #if os(iOS) || os(macOS)
         .onTapGesture(perform: reloadImage)
         #endif
+    }
+    
+    @ViewBuilder
+    private var loadedImage: some View {
+        if let image {
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: max(imageSize.width, imageSize.height))
+                .task { await cacheFetchedImage(image) }
+        } else if let svg {
+            #if os(iOS) || os(macOS)
+            SVGView(svg: svg)
+                .task { await cacheFetchedSVG(svg) }
+            #endif
+        }
     }
     
     private func reloadImage() {

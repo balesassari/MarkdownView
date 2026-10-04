@@ -117,7 +117,7 @@ struct MarkdownViewRenderer: @preconcurrency MarkupVisitor {
     
     func visitThematicBreak(_ thematicBreak: ThematicBreak) -> MarkdownNodeView {
         MarkdownNodeView {
-            Divider()
+            MarkdownStyledThematicBreak()
         }
     }
     
@@ -130,6 +130,8 @@ struct MarkdownViewRenderer: @preconcurrency MarkupVisitor {
         var attributedString = AttributedString(stringLiteral: inlineCode.code)
         attributedString.foregroundColor = tintColor
         attributedString.backgroundColor = configuration.tintColors[.inlineCodeBackground] ?? tintColor.opacity(0.1)
+        attributedString.inlinePresentationIntent = .code
+        attributedString.markdownInlineRole = .inlineCode
         return MarkdownNodeView(attributedString)
     }
     
@@ -287,6 +289,7 @@ struct MarkdownViewRenderer: @preconcurrency MarkupVisitor {
                     var attributes = AttributeContainer()
                         .link(url)
                         .foregroundColor(tintColor)
+                    attributes.markdownInlineRole = .link
                     if underlineLinks {
                         attributes.underlineStyle = .single
                     }

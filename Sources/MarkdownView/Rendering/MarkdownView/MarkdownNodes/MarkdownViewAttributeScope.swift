@@ -10,6 +10,7 @@ import Foundation
 extension AttributeScopes {
     struct MarkdownViewAttributeScope: AttributeScope {
         let isHTML: IsHTMLAttribute
+        let markdownInlineRole: MarkdownInlineRoleAttribute
     }
 }
 
@@ -24,5 +25,13 @@ extension AttributeScopes.MarkdownViewAttributeScope {
         static let name: String = "isHTML"
         
         typealias Value = Bool
+    }
+}
+
+extension AttributeScopes.MarkdownViewAttributeScope {
+    enum MarkdownInlineRoleAttribute: AttributedStringKey {
+        static let name: String = "markdownInlineRole"
+        
+        typealias Value = MarkdownInlineRole
     }
 }

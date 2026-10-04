@@ -44,3 +44,12 @@ extension View {
         }
     }
 }
+
+extension View {
+    /// Sets the style for list items within this view.
+    ///
+    /// - Parameter style: The style to apply to ordered, unordered and task list items.
+    nonisolated public func markdownListItemStyle(_ style: some MarkdownListItemStyle) -> some View {
+        environment(\.markdownListItemStyle, style)
+    }
+}

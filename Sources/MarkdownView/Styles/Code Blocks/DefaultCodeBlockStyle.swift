@@ -7,10 +7,6 @@
 
 import SwiftUI
 
-#if canImport(Highlightr)
-@preconcurrency import Highlightr
-#endif
-
 /// Default code block style that applies to a MarkdownView.
 public struct DefaultCodeBlockStyle: MarkdownCodeBlockStyle {
     /// Theme configuration in the current context.
@@ -58,33 +54,21 @@ fileprivate struct DefaultMarkdownCodeBlock: View {
     var codeBlockConfiguration: MarkdownCodeBlockStyleConfiguration
     
     var theme: CodeHighlighterTheme
-    @Environment(\.colorScheme) private var colorScheme
     
     @Environment(\.markdownFontGroup.codeBlock) private var font
-    
-    @State private var language: String?
-    @State private var attributedCode: AttributedString?
-    @State private var codeHighlightTask: Task<Void, Error>?
     
     @State private var showCopyButton = false
     @State private var codeCopied = false
     
     var body: some View {
         ScrollView(.horizontal) {
-            Group {
-                if let attributedCode {
-                    Text(attributedCode)
-                } else {
-                    Text(verbatim: codeBlockConfiguration.code)
-                }
-            }
+            MarkdownHighlightedCode(
+                configuration: codeBlockConfiguration,
+                theme: theme
+            )
             #if os(macOS) || os(iOS)
             .textSelection(.enabled)
             #endif
-        }
-        .task(id: codeHighlightingConfiguration, immediateHighlight)
-        .onValueChange(codeBlockConfiguration) {
-            debouncedHighlight()
         }
         .lineSpacing(4)
         .font(font._swiftUIFont)
@@ -108,82 +92,6 @@ fileprivate struct DefaultMarkdownCodeBlock: View {
             RoundedRectangle(cornerRadius: 20)
                 .strokeBorder(.quaternary)
         }
-    }
-    
-    private func debouncedHighlight() {
-        codeHighlightTask?.cancel()
-        codeHighlightTask = Task.detached(priority: .background) {
-            try await updateAttributeCode()
-            try await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
-            try await highlight()
-        }
-    }
-    
-    private func updateAttributeCode() async throws {
-        guard var attributedCode = attributedCode else { return }
-        let characters = attributedCode.characters
-        
-        for difference in codeBlockConfiguration.code.difference(from: characters) {
-            try Task.checkCancellation()
-            
-            switch difference {
-            case .insert(let offset, let insertion, _):
-                let insertionPoint = attributedCode.index(
-                    attributedCode.startIndex,
-                    offsetByCharacters: offset
-                )
-                attributedCode.insert(
-                    AttributedString(String(insertion)),
-                    at: insertionPoint
-                )
-            case .remove(let offset, _, _):
-                let removalLowerBound = attributedCode.index(attributedCode.startIndex, offsetByCharacters: offset)
-                let removalUpperBound = attributedCode.index(afterCharacter: removalLowerBound)
-                attributedCode.removeSubrange(removalLowerBound..<removalUpperBound)
-            }
-        }
-        
-        try Task.checkCancellation()
-        await MainActor.run {
-            self.attributedCode = attributedCode
-        }
-    }
-    
-    private func immediateHighlight() async {
-        do {
-            try await highlight()
-        } catch is CancellationError {
-            // The task has been cancelled
-        } catch {
-            logger.error("\(String(describing: error), privacy: .public)")
-        }
-    }
-    
-    @Sendable
-    nonisolated private func highlight() async throws {
-        #if canImport(Highlightr)
-        try Task.checkCancellation()
-        let highlightr = Highlightr()!
-        await highlightr.setTheme(to: theme.themeName(for: colorScheme))
-        
-        let specifiedLanguage = codeBlockConfiguration.language?.lowercased() ?? ""
-        let language = highlightr.supportedLanguages()
-            .first(where: { $0.localizedCaseInsensitiveCompare(specifiedLanguage) == .orderedSame })
-        
-        try Task.checkCancellation()
-        
-        let code = codeBlockConfiguration.code
-        guard let highlightedCode = highlightr.highlight(code, as: language) else { return }
-        let attributedCode = NSMutableAttributedString(
-            attributedString: highlightedCode
-        )
-        attributedCode.removeAttribute(.font, range: NSMakeRange(0, attributedCode.length))
-        
-        try await MainActor.run {
-            try Task.checkCancellation()
-            self.attributedCode = AttributedString(attributedCode)
-        }
-        #endif
     }
     
     private var copyButton: some View {
@@ -244,19 +152,5 @@ fileprivate struct DefaultMarkdownCodeBlock: View {
         } else {
             copyCodeButtonTextTransition
         }
-    }
-}
-
-extension DefaultMarkdownCodeBlock {
-    struct CodeHighlightingConfiguration: Hashable, Sendable {
-        var theme: CodeHighlighterTheme
-        var colorScheme: ColorScheme
-    }
-    
-    private var codeHighlightingConfiguration: CodeHighlightingConfiguration {
-        CodeHighlightingConfiguration(
-            theme: theme,
-            colorScheme: colorScheme
-        )
     }
 }
