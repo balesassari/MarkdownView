@@ -45,6 +45,8 @@ struct MarkdownList<List: ListItemContainer>: View {
             ordinal: ordinal(at: index),
             depth: depth,
             checkbox: checkboxState(of: listItem),
+            // Math preprocessing replaces formulas with placeholders, so lines can drift.
+            sourceLine: mathContext == nil ? listItem.range?.lowerBound.line : nil,
             marker: MarkdownListItemStyleConfiguration.Marker(
                 CheckboxOrMarker(list: self, listItem: listItem, index: index)
                     .padding(.leading, depth == 0 ? configuration.listConfiguration.leadingIndentation : 0)

@@ -42,6 +42,11 @@ public struct MarkdownListItemStyleConfiguration {
     public var depth: Int
     /// The checkbox of a task list item, or `nil` for a plain item.
     public var checkbox: Checkbox?
+    /// The 1-based line in the markdown source where the item starts, or `nil` when the
+    /// rendered text no longer lines up with the source (math preprocessing rewrote it).
+    ///
+    /// Use it to change the source behind an item, such as ticking a task's checkbox.
+    public var sourceLine: Int?
     /// The marker MarkdownView would draw: a bullet, a number or a checkbox.
     public var marker: Marker
     /// The rendered content of the item, including any nested lists.

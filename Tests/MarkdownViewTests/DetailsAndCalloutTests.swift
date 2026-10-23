@@ -88,6 +88,22 @@ struct DetailsAndCalloutTests {
         #expect(markup is Markdown.HTMLBlock)
     }
 
+    @Test("Keeps source lines for markdown parsed out of a one-block section")
+    func keepsSourceLinesInsideSingleBlockSection() throws {
+        let items = items("Intro\n\n<details>\n<summary>Steps</summary>\n- [ ] First\n- [x] Second\n</details>")
+        guard case .details(let details) = try #require(items.last) else {
+            Issue.record("Expected a collapsible section")
+            return
+        }
+        guard case .markup(let markup) = try #require(details.items.first) else {
+            Issue.record("Expected markdown inside the section")
+            return
+        }
+        let list = try #require(markup as? Markdown.UnorderedList)
+        let lines = Array(list.listItems).map { $0.range?.lowerBound.line }
+        #expect(lines == [5, 6])
+    }
+
     @Test(
         "Reads a GitHub alert marker and drops its line",
         arguments: [("[!NOTE]", MarkdownCallout.note), ("[!warning]", .warning), ("[!CAUTION]", .caution)]

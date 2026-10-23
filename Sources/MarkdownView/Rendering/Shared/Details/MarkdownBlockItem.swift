@@ -28,8 +28,9 @@ extension MarkdownBlockItem {
     /// CommonMark ends an HTML block at the first blank line, so `<details>` and its
     /// `<summary>` usually arrive as one HTML block, the markdown inside as ordinary blocks,
     /// and `</details>` as another HTML block. Written without blank lines, a whole section can
-    /// arrive as one HTML block; the text inside it is parsed as markdown here. A section that
-    /// is never closed runs to the end, as in a browser.
+    /// arrive as one HTML block; the text inside it is parsed as markdown here, padded so its
+    /// nodes keep their line numbers in the source. A section that is never closed runs to the
+    /// end, as in a browser.
     static func group(_ blocks: [any Markup]) -> [MarkdownBlockItem] {
         var root: [MarkdownBlockItem] = []
         var openSections: [PendingDetails] = []
@@ -42,8 +43,9 @@ extension MarkdownBlockItem {
             }
         }
 
-        func appendMarkdown(_ source: String) {
-            for child in Markdown.Document(parsing: source).children {
+        func appendMarkdown(_ source: String, line: Int) {
+            let padding = String(repeating: "\n", count: max(line - 1, 0))
+            for child in Markdown.Document(parsing: padding + source).children {
                 append(.markup(child))
             }
         }
@@ -63,7 +65,8 @@ extension MarkdownBlockItem {
                 append(.markup(block))
                 continue
             }
-            for token in tokens {
+            let firstLine = html.range?.lowerBound.line ?? 1
+            for (token, lineOffset) in tokens {
                 switch token {
                 case .open(let isOpen):
                     openSections.append(PendingDetails(isOpen: isOpen))
@@ -73,12 +76,12 @@ extension MarkdownBlockItem {
                        openSections[last].items.isEmpty {
                         openSections[last].summary = summary
                     } else {
-                        appendMarkdown(summary)
+                        appendMarkdown(summary, line: firstLine + lineOffset)
                     }
                 case .close:
                     closeSection()
                 case .markdown(let source):
-                    appendMarkdown(source)
+                    appendMarkdown(source, line: firstLine + lineOffset)
                 }
             }
         }
@@ -103,9 +106,10 @@ private enum DetailsToken {
     /// Text between the tags, rendered as markdown
     case markdown(String)
 
-    /// The tags in `html` in order, with the text between them. Nil when there are no details
-    /// or summary tags, so the block renders as it always has.
-    static func scan(_ html: String) -> [DetailsToken]? {
+    /// The tags in `html` in order, with the text between them, each with the number of lines
+    /// before it in `html`. Nil when there are no details or summary tags, so the block renders
+    /// as it always has.
+    static func scan(_ html: String) -> [(token: DetailsToken, lineOffset: Int)]? {
         guard let regex = try? NSRegularExpression(
             pattern: #"<details\b([^>]*)>|</details\s*>|<summary\b[^>]*>(.*?)</summary\s*>"#,
             options: [.caseInsensitive, .dotMatchesLineSeparators]
@@ -115,12 +119,15 @@ private enum DetailsToken {
         let matches = regex.matches(in: html, range: NSRange(location: 0, length: source.length))
         guard !matches.isEmpty else { return nil }
 
-        var tokens: [DetailsToken] = []
+        var tokens: [(token: DetailsToken, lineOffset: Int)] = []
         var cursor = 0
+        func lineOffset(at location: Int) -> Int {
+            source.substring(to: location).utf16.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+        }
         func appendText(upTo location: Int) {
             let text = source.substring(with: NSRange(location: cursor, length: location - cursor))
             if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                tokens.append(.markdown(text))
+                tokens.append((.markdown(text), lineOffset(at: cursor)))
             }
         }
 
@@ -128,18 +135,18 @@ private enum DetailsToken {
             appendText(upTo: match.range.location)
             let tag = source.substring(with: match.range).lowercased()
             if tag.hasPrefix("</details") {
-                tokens.append(.close)
+                tokens.append((.close, lineOffset(at: match.range.location)))
             } else if tag.hasPrefix("<details") {
                 let attributes = source.substring(with: match.range(at: 1))
                 let isOpen = attributes.range(
                     of: #"\bopen\b"#,
                     options: [.regularExpression, .caseInsensitive]
                 ) != nil
-                tokens.append(.open(isOpen: isOpen))
+                tokens.append((.open(isOpen: isOpen), lineOffset(at: match.range.location)))
             } else {
                 let summary = markdownSummary(fromHTML: source.substring(with: match.range(at: 2)))
                 if !summary.isEmpty {
-                    tokens.append(.summary(summary))
+                    tokens.append((.summary(summary), lineOffset(at: match.range(at: 2).location)))
                 }
             }
             cursor = match.range.location + match.range.length
